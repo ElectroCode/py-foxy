@@ -29,7 +29,7 @@ dbq = Table("quote", meta, autoload=True, autoload_with=engine)
 dbcd = Table("channel_data", meta, autoload=True, autoload_with=engine)
 
 desc = "Quote bot, stores channel quotes."
-quote = utils.registerService("quote", nick="Quote", ident="quote", desc=desc)
+quote = utils.registerService("quote", desc=desc)
 reply = quote.reply
 error = quote.error
 default_permissions = {"$ircop": ['quotes.admin']}
@@ -668,7 +668,7 @@ def g(irc, source, args):
     Sends a message to all channels the bot is in,
     as a global message, aka AMSG."""
     error(irc, "Not Implemented")
-quote.add_cmd(g, "g")
+quote.add_cmd(g, "global")
 
 ##
 #

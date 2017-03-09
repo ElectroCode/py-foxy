@@ -4,7 +4,7 @@ from pylinkirc.log import log
 
 desc = "Welcome bot. Messages newly registered channels with helpful info."
 
-welcome = utils.registerService("welcome", nick="Welcome", ident="Welcome", desc=desc)
+welcome = utils.registerService("welcome", desc=desc)
 
 def hook_privmsg(irc, source, command, args):
     weuid = irc.nickToUid('Welcome')

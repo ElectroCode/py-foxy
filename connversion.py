@@ -5,7 +5,7 @@ from pylinkirc.log import log
 import time
 desc = "CTCP bot, versions connecting users."
 
-ctcp = utils.registerService("ctcp", nick="Aurora", ident="ctcp", desc=desc)
+ctcp = utils.registerService("ctcp", desc=desc)
 
 reply = ctcp.reply
 error = ctcp.error
