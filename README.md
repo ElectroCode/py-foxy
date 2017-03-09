@@ -60,3 +60,5 @@
       * Section: `dnsbl`
 
       * Extra Directives:
+      
+        * `path`: absolute path to your blacklists file.
