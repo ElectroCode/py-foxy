@@ -11,19 +11,19 @@ import json
 cf_conf = conf.conf.get("cf", {})
 def get_cf():
     
-    email = cf_conf.get("cf-email", "")
-    key =   cf_conf.get("cf-key", "")
+    email = cf_conf.get("email", "")
+    key =   cf_conf.get("key", "")
     
     return CloudFlare.CloudFlare(email=email, token=key, raw=True)
 
 rr_add = utils.IRCParser()
-rr_add.set_defaults(zone=cf_conf.get("cf-zone", ""))
+rr_add.set_defaults(zone=cf_conf.get("zone", ""))
 rr_add.add_argument("name")
 rr_add.add_argument("content")
 rr_add.add_argument("-t", "--type", choices=["A", "AAAA", "CNAME"], required=True)
 rr_add.add_argument("-l", "--ttl", type=int)
 def cf_add(irc, source, args):
-    """<name> <content> <options>
+    """<name> <content> <args>
     -t / --type : Type of Record (A, AAAA, CNAME)
     
     -l / --ttl : 'time to live' of record (If not given, ttl is made automatic)
@@ -31,51 +31,51 @@ def cf_add(irc, source, args):
     
     Adds a record to a RR group of records
     """
-    permissions.checkPermissions(irc, source, ['dns.add'])
+    permissions.checkPermissions(irc, source, ['cloudflare.add'])
     cf = get_cf()
     args = rr_add.parse_args(args)
 
     body = {
-        "type":    options.type,
-        "name":    options.name,
-        "content": options.content,
+        "type":    args.type,
+        "name":    args.name,
+        "content": args.content,
     }
-    body["ttl"] = options.ttl if options.ttl else 1
+    body["ttl"] = args.ttl if args.ttl else 1
 
-    response = cf.zones.dns_records.post(options.zone, data = body)
+    response = cf.zones.dns_records.post(args.zone, data = body)
     irc.reply("Record Added. %(name)s as %(content)s" % result, private=False)
     irc.reply("Record ID: %(id)s" % result, private=False)
 utils.add_cmd(cf_add, "rr-add", featured=True)
 
 rr_show = utils.IRCParser()
-rr_show.set_defaults(zone=cf_conf.get("cf-zone", "")) 
+rr_show.set_defaults(zone=cf_conf.get("zone", "")) 
 rr_show.add_argument("-t", "--type", choices=["A", "AAAA", "CNAME"])
 rr_show.add_argument("-n", "--name")
 rr_show.add_argument("-c", "--content")
 rr_show.add_argument("-o", "--order", default="type")
 def cf_show(irc, source, args):
-    """<options>
+    """<args>
     -n / --name : Name / Subdomain
     -t / --type : Type of record
     -c / --content : Content of record / IP
     -o / --order : Order by ... (type, content, name)
     —    Search records
     """
-    permissions.checkPermissions(irc, source, ['dns.show'])    
+    permissions.checkPermissions(irc, source, ['cloudflare.show'])    
     cf = get_cf()
     args = rr_show.parse_args(args)
 
     body = {
-        "order": options.order,
-        "type":  options.type
+        "order": args.order,
+        "type":  args.type
     }
 
-    if options.name:
-        body["name"]    = options.name
-    if options.content:
-        body["content"] = options.content
+    if args.name:
+        body["name"]    = args.name
+    if args.content:
+        body["content"] = args.content
 
-    response = cf.zones.dns_records.get(options.zone, params = body)
+    response = cf.zones.dns_records.get(args.zone, params = body)
 
     count = response.get("result_info", {}).get("count", 0)
     result = response.get("result", [])
@@ -86,17 +86,17 @@ def cf_show(irc, source, args):
 utils.add_cmd(cf_show, "rr-show", featured=True)
 
 rr_rem = utils.IRCParser()
-rr_rem.set_defaults(zone=cf_conf.get("cf-zone", ""))
+rr_rem.set_defaults(zone=cf_conf.get("zone", ""))
 rr_rem.add_argument("id")
 def cf_rem(irc, source, args):
     """<record id>
     Removes a record.
     """
-    permissions.checkPermissions(irc, source, ['dns.rem'])
+    permissions.checkPermissions(irc, source, ['cloudflare.rem'])
     cf = get_cf()
     args = rr_rem.parse_args(args)
 
-    response = cf.zones.dns_records.delete(options.zone, options.id)
+    response = cf.zones.dns_records.delete(args.zone, args.id)
     result = response["result"]
     irc.reply("Record Removed. ID: %(id)s" % result, private=False)
 utils.add_cmd(cf_rem, "rr-rem", featured=True)
