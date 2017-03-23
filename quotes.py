@@ -255,7 +255,12 @@ def qadd(irc, source, args):
         quote=ourquote,
         added_by=irc.getHostmask(source)
     )
-    engine.execute(ins)
+    try:
+        engine.execute(ins)
+    except exc.OperationalError as e:
+        log.error("OperationalError Occured:")
+        log.error("Exception Details: %s" % e)
+        error(irc, "Stale Database Connection, Please try again.")
     reply(irc, "Done. Quote #%s added." % next_id)
     new_nextid = int(next_id) + 1
     updated = engine.execute(dbcd.update().where(
@@ -280,10 +285,15 @@ def qdel(irc, source, args):
     options = qdel_parser.parse_args(args)
     channel = irc.called_in
     id = options.id
-    result = engine.execute(dbq.delete().where(and_(
-        dbq.c.id      == id,
-        dbq.c.channel == channel
-    ))).rowcount
+    try:
+        result = engine.execute(dbq.delete().where(and_(
+            dbq.c.id      == id,
+            dbq.c.channel == channel
+        ))).rowcount
+    except exc.OperationalError as e:
+        log.error("OperationalError Occured:")
+        log.error("Exception Details: %s" % e)
+        error(irc, "Stale Database Connection, Please try again.")
     if result:
         reply(irc, "Done. Quote #%s deleted." % (id))
     else:
@@ -306,12 +316,17 @@ def stats(irc, source, args):
     """
     permissions.checkPermissions(irc, source, ["quotes.admin"])
     statdict = {}
-    statdict["total_quote_count"] = engine.execute(
+    try:
+        statdict["total_quote_count"] = engine.execute(
             dbq.count()
         ).fetchall()[0][0]
-    statdict["total_channel_count"] = engine.execute(
+        statdict["total_channel_count"] = engine.execute(
             dbc.count()
         ).fetchall()[0][0]
+    except exc.OperationalError as e:
+        log.error("OperationalError Occured:")
+        log.error("Exception Details: %s" % e)
+        error(irc, "Stale Database Connection, Please try again.")
     reply(irc, "Quotes: %(total_quote_count)s / Channels: %(total_channel_count)s" % (statdict))
 quote.add_cmd(stats, "stats")
 
@@ -328,7 +343,12 @@ def addquote(irc, source, args):
     s = select([dbcd.c.next_id]).where(
         dbcd.c.channel == options.channel
     )
-    result = engine.execute(s).fetchone()[0]
+    try:
+        result = engine.execute(s).fetchone()[0]
+    except exc.OperationalError as e:
+        log.error("OperationalError Occured:")
+        log.error("Exception Details: %s" % e)
+        error(irc, "Stale Database Connection, Please try again.")
     next_id = result
     channel = options.channel
 
@@ -379,7 +399,12 @@ def getquote(irc, source, args):
                 dbq.c.id == id,
                 dbq.c.channel == options.channel,
             ))
-            result = engine.execute(s).fetchone()
+            try:
+                result = engine.execute(s).fetchone()
+            except exc.OperationalError as e:
+                log.error("OperationalError Occured:")
+                log.error("Exception Details: %s" % e)
+                error(irc, "Stale Database Connection, Please try again.")
             if result == None:
                 error(irc, "No quote under that id.")
             else:
@@ -392,7 +417,12 @@ def getquote(irc, source, args):
                 dbq.c.quote.like("%{}%".format(options.query)),
                 dbq.c.channel == options.channel
         ))
-        result = engine.execute(s).fetchall()
+        try:
+            result = engine.execute(s).fetchall()
+        except exc.OperationalError as e:
+            log.error("OperationalError Occured:")
+            log.error("Exception Details: %s" % e)
+            error(irc, "Stale Database Connection, Please try again.")
         qlist = [x[0] for x in result]
         if qlist == []:
             error(irc, "No quotes available.")
@@ -415,7 +445,12 @@ def getquotes(irc, source, args):
     permissions.checkPermissions(irc, source, ["quotes.admin"])
     options = getqs_parser.parse_args(args)
     s = select([dbq.c.id]).where(dbq.c.channel == options.channel)
-    result = engine.execute(s)
+    try:
+        result = engine.execute(s)
+    except exc.OperationalError as e:
+        log.error("OperationalError Occured:")
+        log.error("Exception Details: %s" % e)
+        error(irc, "Stale Database Connection, Please try again.")
     qlist = [x[0] for x in result]
     if qlist == []:
         reply(irc, "No quotes exist for that channel.")
@@ -434,10 +469,17 @@ def delquote(irc, source, args):
     options = delq_parser.parse_args(args)
     channel = options.channel
     id = options.id
-    result = engine.execute(dbq.delete().where(and_(
-        dbq.c.id      == id,
-        dbq.c.channel == channel,
-    ))).rowcount
+    s = dbq.delete().where(and_(
+            dbq.c.id      == id,
+            dbq.c.channel == channel,
+        )
+    )
+    try:
+        result = engine.execute(s).rowcount
+    except exc.OperationalError as e:
+        log.error("OperationalError Occured:")
+        log.error("Exception Details: %s" % e)
+        error(irc, "Stale Database Connection, Please try again.")
     if result:
         reply(irc, "Done. Quote #%s deleted." % (id))
     else:
@@ -452,15 +494,23 @@ def hook_invite(irc, source, command, args):
     
     if target == "Quote":
         channel_id = ""
-        chandata = engine.execute(dbcd.select().where(
+        s = dbcd.select().where(
             dbcd.c.channel == channel
-        )).fetchone()
+        )
+        try:
+            chandata = engine.execute(s).fetchone()
+        except exc.OperationalError as e:
+            log.error("OperationalError Occured:")
+            log.error("Exception Details: %s" % e)
+            error(irc, "Stale Database Connection, Please try again.")
+            error(irc, "If you've already done this more than once, let an admin know.")
         channel_row = None
         if chandata:
             channel_row = engine.execute(dbc.select().where(and_(
                 dbc.c.channel == channel,
                 dbc.c.id      == chandata[0]
             ))).fetchone()
+        
             log.info("Channel Data exists for %s, using previous id" % channel)
             channel_id = chandata[0]
         else:
@@ -533,9 +583,14 @@ def join(irc, source, args):
         # if a channel_data row exists for the channel,
         # we know we have quotes from that channel
         channel_id = None
-        chandata = engine.execute(select([dbcd.c.cid]).where(
-            dbcd.c.channel == options.channel
-        )).fetchone()
+        try:
+            chandata = engine.execute(select([dbcd.c.cid]).where(
+                dbcd.c.channel == options.channel
+            )).fetchone()
+        except exc.OperationalError as e:
+            log.error("Non-Critical Error: %s" % e)
+            log.error("Stale Database Connection")
+            error(irc, "Stale DB Connection, Please Try Again.")
         channel_row = None
         if chandata:
             channel_row = engine.execute(dbc.select().where(and_(
@@ -606,7 +661,11 @@ def part(irc, source, args):
     delstmt = dbc.delete().where(
         dbc.c.channel == options.channel
     )
-    result = engine.execute(delstmt).rowcount
+    try:
+        result = engine.execute(delstmt).rowcount
+    except exc.OperationError as e:
+        log.error("Stale Database Connection")
+        error(irc, "Stale Database Connection, please try again.")
     if result > 0:
         reply(irc, "Channel removed")
     else:
@@ -623,9 +682,13 @@ def getnextid(irc, source, args):
     options = gni_parser.parse_args(args)
     channel = options.channel
     if channel.startswith("#"):
-        result = engine.execute(select([dbcd.c.next_id]).where(
-            dbcd.c.channel == channel
-        )).rowcount
+        try:
+            result = engine.execute(select([dbcd.c.next_id]).where(
+                dbcd.c.channel == channel
+            )).rowcount
+        except exc.OperationalError as e:
+            log.error("Stale Database Connection")
+            error(irc, "Stale DB Connection, please try again.")
         if result > 0:
             next_id = engine.execute(select([dbcd.c.next_id]).where(
                 dbcd.c.channel == channel
@@ -654,9 +717,16 @@ def setnextid(irc, source, args):
     if not options.int:
         log.error("Did not receive a ID to set.")
     else:
-        ins = engine.execute(dbcd.update().where(
+        ins = dbcd.update().where(
             dbcd.c.channel == options.channel
-        ).values(next_id = options.int)).rowcount
+        ).values(
+            next_id=options.int
+        )
+        try:
+            engine.execute(ins).rowcount
+        except exc.OperationalError as e:
+            log.error("Stale DB Connection")
+            error(irc, "Stale DB Connection, please try again.")
         if ins > 0:
             reply(irc, "Set {}'s next id to {}".format(options.channel, options.int))
         else:
